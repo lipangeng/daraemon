@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 通用function定义
 function init_env(){
-    service_path=''
+    service_path='/Users/lipangeng/Documents/Developer/Extension/Daraemon/daraemons'
 }
 # 初始化
 function init {
@@ -202,21 +202,21 @@ function depend_handler {
 
 # 软件服务管理
 function service_handler(){
-    service_name = $1
-    service_script = $2
+    service_name=$1
+    service_script=$2
     if [ ! -d "${service_path}/${service_name}" ]; then
         echo "服务不存在。参考:${service_path}/${service_name}"
         return
     fi
-    if [ ! -d "${service_path}/${service_name}/${service_script}" ]; then
+    if [ ! -f "${service_path}/${service_name}/${service_script}" ]; then
         echo "服务命令不存在。参考:${service_path}/${service_name}/${service_script}"
         return
     fi
-    source "${service_path}/${service_name}/env"
-    soucre "${service_path}/${service_name}/${service_script}"
+    if [ -f "${service_path}/${service_name}/env" ]; then
+        source "${service_path}/${service_name}/env"
+    fi
+    source "${service_path}/${service_name}/${service_script}"
 }
-
-
 
 # 项目启动
 init $@
