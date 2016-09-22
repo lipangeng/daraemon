@@ -1,1 +1,221 @@
 #!/usr/bin/env bash
+# 通用function定义
+function init_env(){
+    service_path=''
+}
+# 初始化
+function init {
+    # 初始化环境变量
+    init_env
+    handle_name='无参数'
+    case $1 in
+        "service")
+            handle_name="服务管理"
+            service_handler $2 $3
+        ;;
+        "install")
+            handle_name="安装编译"
+            install_handler $2
+        ;;
+        "depend")
+            case $2 in
+                "unset")
+                    handle_name="清空依赖"
+                    depend_handler unset
+                ;;
+                *)
+                    handle_name="引入依赖"
+                    depend_handler $2
+                ;;
+            esac
+        ;;
+        *)
+            handle_name="无效命令"
+            echo '非有效操作';
+            echo 'Usage: dareamon [service|install|depend]';
+            echo 'Usage: dareamon service {name} {script}';
+            echo 'Usage: dareamon install {build script}';
+            echo 'Usage: dareamon depend [unset] {lib name}';
+            exit 1;
+        ;;
+    esac
+    echo "已执行操作:${handle_name}"
+}
+# 编译安装的handler
+function install_handler(){
+    # 安装的执行程序
+    function install_run {
+        install_environment $1
+        #判断文件是否存在
+        install_check_file
+        #检查源代码是否存在
+        check_source
+        #创建基本文件
+        install_mkpaths
+        #配置构建参数
+        install_config
+        #编译安装
+        install_do
+    }
+    # 安装程序时的环境变量
+    function install_environment {
+        #获取脚本绝对路径
+        buildfile=$(basename $1)
+        buildpath=$(cd $(dirname $1) && pwd)
+        prefix="${buildpath}/binary"
+        echo "需构建的脚本位于绝对位置:${buildpath}下的${buildfile}"
+    }
+    #检查安装脚本是否存在
+    function install_check_file() {
+        if [ ! -f "${buildpath}/${buildfile}" ]; then
+            echo "脚本不存在位置:${buildpath}"
+            exit
+        fi
+    }
+    # 创建文件路径
+    function install_mkpaths() {
+        #切换到脚本路径
+        cd ${buildpath}
+        #删除Current文件
+        rm -rf ../../Current binary
+        #创建binary文件夹
+        mkdir binary
+        #创建Current软连
+        ln -s ${buildpath}/binary ../../Current
+    }
+    #进行安装
+    function install_do() {
+        cd ${buildpath}/source
+        make -j
+        make install
+        make clean
+    }
+    #检查资源文件是否存在
+    function check_source() {
+        if [ ! -d "${buildpath}/source" ]; then
+            mkdir "${buildpath}/source"
+            echo "源代码source文件不存在,已创建,请放入源代码至:$(cd ${buildpath}/source && pwd)"
+            exit
+        fi
+    }
+    #配置构建参数
+    function install_config() {
+        cd ${buildpath}/source
+        make clean
+        source ../${buildfile}
+    }
+    install_run $1
+}
+
+# 项目依赖管理
+function depend_handler {
+    # 真正的执行器,导入项目依赖
+    function depend_run {
+        # 去掉环境变量依赖
+        if [ x$1 == "xunset" ]; then
+            depend_unset
+            exit;
+        fi
+        # 设置环境变量
+        depend_environment $1
+        # 检查依赖是否存在，如果存在则引入相关依赖
+        if [ check_depend_home ]; then
+            depend_bin
+            depend_include_c
+            depend_include_lib
+            depend_pkg_config
+        fi
+    }
+    # 引入环境变量
+    function depend_environment {
+        depend_root_home="${DevLib_Home}" || "/Users/lipangeng/Documents/Developer/Extension/Library"
+        depend_name=$1
+        if [ ! -d "${depend_root_home}/${depend_name}/Current" ]; then
+            echo "在目录${depend_root_home}中不存在依赖:${depend_name}"
+            exit
+        fi
+        depend_home="${depend_root_home}/${depend_name}/Current"
+        echo "引入依赖:${depend_name},依赖Home:${depend_home}"
+    }
+    # 检测依赖路径是否存在
+    function check_depend_home {
+        if [ ! -d "${depend_home}" ]; then
+            echo "Depend:${depend_home}不存在于:${depend_root_home}"
+            exit -1
+        fi
+        export ${depend_name}_home=${depend_home}
+        echo "进入Depend:${depend_home}目录"
+    }
+    # 将bin目录加入PATH环境变量
+    function depend_bin() {
+        if [ ! -d "${depend_home}/bin" ]; then
+            echo "Depend:${depend_home}/bin不存在于:${depend_root_home}中."
+        else
+            export PATH=${depend_home}/bin:$PATH
+            echo "将${depend_home}/bin引入PATH环境变量"
+        fi
+    }
+    # 将include引入C_INCLUDE_PATH CPLUS_INCLUDE_PATH环境变量
+    function depend_include_c() {
+        if [ ! -d "${depend_home}/include" ]; then
+            echo "Depend:${depend_home}/include不存在于:${depend_root_home}中."
+        else
+            export C_INCLUDE_PATH=${depend_home}/include:$C_INCLUDE_PATH
+            export CPLUS_INCLUDE_PATH=${depend_home}/include:$CPLUS_INCLUDE_PATH
+            export CFLAGS="-I${depend_home}/include ${CFLAGS}"
+            export CPPFLAGS="-I${depend_home}/include ${CPPFLAGS}"
+            export CXXFLAGS="-I${depend_home}/include ${CXXFLAGS}"
+            echo "将${depend_home}/include引入C_INCLUDE_PATH和CPLUS_INCLUDE_PATH环境变量"
+        fi
+    }
+    # 将lib引入LIBRARY_PATH DYLD_LIBRARY_PATH环境变量
+    function depend_include_lib() {
+        if [ ! -d "${depend_home}/lib" ]; then
+            echo "Depend:${depend_home}/lib不存在于:${depend_root_home}中."
+        else
+            export LIBRARY_PATH=${depend_home}/lib:$LIBRARY_PATH
+            export DYLD_LIBRARY_PATH=${depend_home}/lib:$DYLD_LIBRARY_PATH
+            export LDFLAGS="-L${depend_home}/lib ${LDFLAGS}"
+            echo "将${depend_home}/lib引入LIBRARY_PATH和DYLD_LIBRARY_PATH环境变量"
+         fi
+    }
+    # 将pkg-config引入PKG_CONFIG_PATH环境变量
+    function depend_pkg_config() {
+        if [ ! -d "${depend_home}/lib/pkgconfig" ]; then
+            echo "Depend:${depend_home}/lib/pkgconfig不存在于:${depend_root_home}中."
+        else
+            export PKG_CONFIG_PATH=${depend_home}/lib/pkgconfig:$PKG_CONFIG_PATH
+            echo "将${depend_home}/lib/pkgconfig引入PKG_CONFIG_PATH环境变量"
+        fi
+    }
+    # 是否进行unset,清空LDFLAGS,CFLAGS,CPPFLAGS,CXXFLAGS
+    function depend_unset {
+        unset -v LDFLAGS
+        unset -v CFLAGS
+        unset -v CPPFLAGS
+        unset -v CXXFLAGS
+        echo "进行unset操作，已清空LDFLAGS,CFLAGS,CPPFLAGS,CXXFLAGS"
+    }
+    # 真正的执行器
+    depend_run $1;
+}
+
+# 软件服务管理
+function service_handler(){
+    service_name = $1
+    service_script = $2
+    if [ ! -d "${service_path}/${service_name}" ]; then
+        echo "服务不存在。参考:${service_path}/${service_name}"
+        return
+    fi
+    if [ ! -d "${service_path}/${service_name}/${service_script}" ]; then
+        echo "服务命令不存在。参考:${service_path}/${service_name}/${service_script}"
+        return
+    fi
+    source "${service_path}/${service_name}/${service_script}"
+}
+
+
+
+# 项目启动
+init $@
