@@ -212,7 +212,8 @@ function service_handler(){
         echo "服务命令不存在。参考:${service_path}/${service_name}/${service_script}"
         return
     fi
-    source "${service_path}/${service_name}/${service_script}"
+    source "${service_path}/${service_name}/env"
+    soucre "${service_path}/${service_name}/${service_script}"
 }
 
 
