@@ -20,7 +20,7 @@ console() {
     ./bin/mysqld_safe
 }
 cd ${MYSQL_HOME}
-case "$1" in
+case "$method" in
     start)
         start
         exit 0
