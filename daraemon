@@ -33,9 +33,9 @@ function init {
             handle_name="无效命令"
             echo '非有效操作';
             echo 'Usage: dareamon [service|install|depend]';
-            echo 'Usage: dareamon service {name} {script}';
-            echo 'Usage: dareamon install {build script}';
-            echo 'Usage: dareamon depend [unset] {lib name}';
+            echo 'Usage: dareamon service [name] [script]';
+            echo 'Usage: dareamon install [build script]';
+            echo 'Usage: dareamon depend [unset|{lib_name}]';
             exit 1;
         ;;
     esac
