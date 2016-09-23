@@ -9,9 +9,8 @@
     
 以`daraemon service mysql start`命令说明处理逻辑：
 1. 检查：设定的service_path路径中查找mysql文件夹
-1. 检查：mysql文件夹中查找start文件
-1. 如果mysql文件夹中存在env文件，则使用source命令执行env文件
-1. 使用source命令执行start文件
+1. 如果service_path文件夹中存在env文件，则使用source命令执行env文件
+1. 使用source命令载入mysql脚本的start命令
 
 ## install 构建命令
 
