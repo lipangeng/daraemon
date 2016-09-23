@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# 配置环境变量
+MYSQL_HOME=''
+# 启动方法，后台启动
+start() {
+    echo '正在启动MySql数据库'
+    ./bin/mysqld_safe &
+    echo 'Mysql数据库启动成功'
+}
+# 关闭方法
+stop() {
+    echo '正在关闭数据库....'
+    ./bin/mysqladmin -uroot -pbaby02194 shutdown
+    echo '数据库已经关闭'
+}
+# 前台方法
+console() {
+    echo '正在启动MySql数据库'
+    ./bin/mysqld_safe
+}
+cd ${MYSQL_HOME}
+case "$1" in
+    start)
+        start
+        exit 0
+    ;;
+    stop)
+        stop
+        exit 0
+    ;;
+    console)
+        console
+        exit 0
+    ;;
+    reload|restart|force-reload)
+        stop
+        start
+        exit 0
+    ;;
+    **)
+        echo "Usage: $0 {start|stop|console|reload}" 1>&2
+        exit 1
+    ;;
+esac
